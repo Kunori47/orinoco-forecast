@@ -1,0 +1,11 @@
+{
+  "mae": 0.3795532286167145,
+  "rmse": 0.49992960691452026,
+  "mape": 11.128180503845215,
+  "nse": 0.9794042706489563,
+  "training_seconds": 621.5239009279994,
+  "num_params": 102558,
+  "target_col": "palua",
+  "model": "transformer",
+  "artifact_tag": "transformer_palua"
+}

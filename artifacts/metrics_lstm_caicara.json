@@ -1,0 +1,11 @@
+{
+  "mae": 0.3779706358909607,
+  "rmse": 0.5204013586044312,
+  "mape": 1.4002690315246582,
+  "nse": 0.9840610027313232,
+  "training_seconds": 388.47258482000007,
+  "num_params": 207134,
+  "target_col": "caicara",
+  "model": "lstm",
+  "artifact_tag": "lstm_caicara"
+}

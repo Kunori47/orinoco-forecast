@@ -1,0 +1,13 @@
+{
+  "feature_columns": [
+    "ayacucho",
+    "caicara",
+    "ciudad_bolivar",
+    "palua",
+    "dia_sin",
+    "dia_cos",
+    "mes_sin",
+    "mes_cos",
+    "temporada"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "mae": 0.37716031074523926,
+  "rmse": 0.49654147028923035,
+  "mape": 10.033623695373535,
+  "nse": 0.9796825051307678,
+  "training_seconds": 281.3413360879995,
+  "num_params": 207134,
+  "target_col": "palua",
+  "model": "lstm",
+  "artifact_tag": "lstm_palua"
+}

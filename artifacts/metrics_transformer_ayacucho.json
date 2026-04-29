@@ -1,0 +1,11 @@
+{
+  "mae": 0.47067779302597046,
+  "rmse": 0.6446807980537415,
+  "mape": 1.0317025184631348,
+  "nse": 0.9713631868362427,
+  "training_seconds": 606.287074114,
+  "num_params": 102558,
+  "target_col": "ayacucho",
+  "model": "transformer",
+  "artifact_tag": "transformer_ayacucho"
+}

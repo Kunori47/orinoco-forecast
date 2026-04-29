@@ -1,0 +1,11 @@
+{
+  "mae": 0.45540839433670044,
+  "rmse": 0.6272243857383728,
+  "mape": 1.0016109943389893,
+  "nse": 0.9728930592536926,
+  "training_seconds": 227.25142883300032,
+  "num_params": 207134,
+  "target_col": "ayacucho",
+  "model": "lstm",
+  "artifact_tag": "lstm_ayacucho"
+}
