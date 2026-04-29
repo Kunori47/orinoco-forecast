@@ -162,6 +162,8 @@ Parametros nuevos de inferencia:
 - `--enso-scenario`: `neutral`, `nino`, `nina`.
 - `--enso-strength`: intensidad del ajuste ENSO.
 - `--enso-lag-days`: desfase del efecto ENSO en dias.
+- `--enso-smooth-window`: suavizado (dias) del ajuste ENSO para evitar picos artificiales.
+- `--variability-gain`: ganancia de variabilidad final (`1.0` sin cambio, `>1` mas picos, `<1` mas plano).
 - `--artifacts-dir`: carpeta base para resolver artefactos por ciudad/modelo.
 - `--model-path`, `--scaler-path`, `--feature-columns`: opcionales; si no se pasan, se resuelven automaticamente.
 - `--output-csv`: opcional; si no se pasa, se genera nombre automatico.

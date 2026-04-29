@@ -49,6 +49,18 @@ def parse_args() -> argparse.Namespace:
         default=0,
         help="Desfase en dias para el ajuste ENSO (positivo retrasa picos).",
     )
+    parser.add_argument(
+        "--enso-smooth-window",
+        type=int,
+        default=21,
+        help="Ventana (dias) para suavizar el ajuste ENSO y evitar picos artificiales.",
+    )
+    parser.add_argument(
+        "--variability-gain",
+        type=float,
+        default=1.0,
+        help="Ganancia de variabilidad final (1.0 sin cambio, >1 mas picos, <1 mas plano).",
+    )
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--artifacts-dir", type=str, default="artifacts")
     parser.add_argument("--output-csv", type=str, default="")
@@ -136,6 +148,7 @@ def apply_enso_adjustment(
     scenario: str,
     strength: float,
     lag_days: int,
+    smooth_window: int,
 ) -> np.ndarray:
     if scenario == "neutral" or strength <= 0:
         return preds_real
@@ -156,8 +169,26 @@ def apply_enso_adjustment(
         ],
         dtype=np.float32,
     )
+    window = max(1, int(smooth_window))
+    if window > 1 and len(delta) > 1:
+        # Suavizado centrado para reducir saltos entre cambios mensuales.
+        delta = pd.Series(delta).rolling(window=window, center=True, min_periods=1).mean().to_numpy(dtype=np.float32)
+
     adjusted = preds_real + delta
     return np.maximum(adjusted, 0.0)
+
+
+def apply_variability_gain(preds_real: np.ndarray, gain: float, trend_window: int = 31) -> np.ndarray:
+    gain = float(gain)
+    if abs(gain - 1.0) < 1e-6:
+        return preds_real
+    if len(preds_real) <= 2:
+        return np.maximum(preds_real, 0.0)
+
+    # Amplifica/anula anomalias alrededor de la tendencia local.
+    trend = pd.Series(preds_real).rolling(window=max(3, trend_window), center=True, min_periods=1).mean().to_numpy()
+    adjusted = trend + gain * (preds_real - trend)
+    return np.maximum(adjusted.astype(np.float32), 0.0)
 
 
 def main() -> None:
@@ -273,7 +304,9 @@ def main() -> None:
         scenario=args.enso_scenario,
         strength=float(args.enso_strength),
         lag_days=args.enso_lag_days,
+        smooth_window=args.enso_smooth_window,
     )
+    preds_real = apply_variability_gain(preds_real, gain=float(args.variability_gain))
 
     if args.output_csv:
         out = Path(args.output_csv)

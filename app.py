@@ -171,6 +171,8 @@ days = st.number_input("Dias a predecir", min_value=1, max_value=3650, value=730
 lookback = st.number_input("Lookback", min_value=7, max_value=730, value=90, step=1)
 horizon = st.number_input("Horizon", min_value=1, max_value=365, value=30, step=1)
 recursive_step = st.number_input("Recursive step", min_value=1, max_value=60, value=1, step=1)
+enso_smooth_window = st.number_input("Suavizado ENSO (dias)", min_value=1, max_value=120, value=21, step=1)
+variability_gain = st.number_input("Ganancia de variabilidad", min_value=0.5, max_value=2.0, value=1.0, step=0.05)
 
 col1, col2 = st.columns(2)
 with col1:
@@ -211,6 +213,10 @@ if st.button("Generar escenarios ahora"):
                     str(int(recursive_step)),
                     "--enso-scenario",
                     scenario,
+                    "--enso-smooth-window",
+                    str(int(enso_smooth_window)),
+                    "--variability-gain",
+                    str(float(variability_gain)),
                     "--artifacts-dir",
                     ARTIFACTS_DIR,
                 ]
