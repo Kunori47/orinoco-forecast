@@ -1,0 +1,14 @@
+{
+  "mae": 0.4045318365097046,
+  "rmse": 0.5406968593597412,
+  "mape": 10.070258140563965,
+  "nse": 0.9759083390235901,
+  "training_seconds": 160.5740427589999,
+  "num_params": 4809872,
+  "target_col": "palua",
+  "model": "random_forest",
+  "artifact_tag": "random_forest_palua",
+  "rf_n_estimators": 300.0,
+  "rf_n_features_in": 810.0,
+  "rf_n_outputs": 30.0
+}

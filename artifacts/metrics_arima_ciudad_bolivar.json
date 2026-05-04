@@ -1,0 +1,15 @@
+{
+  "mae": 0.7728330492973328,
+  "rmse": 1.2167776823043823,
+  "mape": 9.962979316711426,
+  "nse": 0.9292703866958618,
+  "training_seconds": 49.43889655000021,
+  "num_params": 5,
+  "target_col": "ciudad_bolivar",
+  "model": "arima",
+  "artifact_tag": "arima_ciudad_bolivar",
+  "arima_windows": 2684.0,
+  "arima_successful_windows": 2684.0,
+  "arima_failed_windows": 0.0,
+  "arima_avg_num_params": 5.0
+}

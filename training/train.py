@@ -1,11 +1,23 @@
 import argparse
 import json
 import time
+import warnings
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import torch
 import torch.nn as nn
+
+try:
+    from sklearn.ensemble import RandomForestRegressor
+except ImportError:  # pragma: no cover - depende del entorno de ejecucion
+    RandomForestRegressor = None  # type: ignore[assignment]
+
+try:
+    from statsmodels.tsa.arima.model import ARIMA
+except ImportError:  # pragma: no cover - depende del entorno de ejecucion
+    ARIMA = None  # type: ignore[assignment]
 
 from models import LSTMForecaster, TransformerForecaster
 from training.data_utils import (
@@ -35,7 +47,7 @@ def parse_args() -> argparse.Namespace:
         help="Columnas de estaciones en el excel",
     )
     parser.add_argument("--target-col", type=str, default="ciudad_bolivar")
-    parser.add_argument("--model", type=str, choices=["lstm", "transformer"], default="lstm")
+    parser.add_argument("--model", type=str, choices=["lstm", "transformer", "arima", "random_forest"], default="lstm")
     parser.add_argument("--lookback", type=int, default=90)
     parser.add_argument("--horizon", type=int, default=30)
     parser.add_argument("--stride", type=int, default=1)
@@ -50,6 +62,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--nhead", type=int, default=4)
     parser.add_argument("--transformer-layers", type=int, default=2)
     parser.add_argument("--dim-feedforward", type=int, default=256)
+    parser.add_argument("--rf-n-estimators", type=int, default=300)
+    parser.add_argument("--rf-max-depth", type=int, default=20)
+    parser.add_argument("--rf-min-samples-leaf", type=int, default=1)
+    parser.add_argument("--arima-p", type=int, default=3)
+    parser.add_argument("--arima-d", type=int, default=1)
+    parser.add_argument("--arima-q", type=int, default=1)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--artifacts-dir", type=str, default="artifacts")
@@ -61,7 +79,7 @@ def set_seed(seed: int) -> None:
     torch.manual_seed(seed)
 
 
-def pick_model(args: argparse.Namespace, input_size: int) -> torch.nn.Module:
+def pick_neural_model(args: argparse.Namespace, input_size: int) -> torch.nn.Module:
     if args.model == "lstm":
         return LSTMForecaster(
             input_size=input_size,
@@ -70,15 +88,17 @@ def pick_model(args: argparse.Namespace, input_size: int) -> torch.nn.Module:
             forecast_horizon=args.horizon,
             dropout=args.dropout,
         )
-    return TransformerForecaster(
-        input_size=input_size,
-        d_model=args.d_model,
-        nhead=args.nhead,
-        num_layers=args.transformer_layers,
-        dim_feedforward=args.dim_feedforward,
-        forecast_horizon=args.horizon,
-        dropout=min(args.dropout, 0.1),
-    )
+    if args.model == "transformer":
+        return TransformerForecaster(
+            input_size=input_size,
+            d_model=args.d_model,
+            nhead=args.nhead,
+            num_layers=args.transformer_layers,
+            dim_feedforward=args.dim_feedforward,
+            forecast_horizon=args.horizon,
+            dropout=min(args.dropout, 0.1),
+        )
+    raise ValueError(f"Modelo neural no soportado: {args.model}")
 
 
 def train_model(
@@ -160,6 +180,69 @@ def inverse_target(scaler, arr_2d: np.ndarray, target_idx: int, n_features: int)
     return inv.reshape(rows, horizon)
 
 
+def train_random_forest(args: argparse.Namespace, X_train: np.ndarray, y_train: np.ndarray) -> Any:
+    if RandomForestRegressor is None:
+        raise ImportError("scikit-learn no esta instalado. Ejecuta: pip install scikit-learn")
+    max_depth = None if args.rf_max_depth <= 0 else args.rf_max_depth
+    model = RandomForestRegressor(
+        n_estimators=args.rf_n_estimators,
+        max_depth=max_depth,
+        min_samples_leaf=args.rf_min_samples_leaf,
+        random_state=args.seed,
+        n_jobs=-1,
+    )
+    model.fit(X_train.reshape(X_train.shape[0], -1), y_train)
+    return model
+
+
+def forecast_arima_per_window(
+    X_test: np.ndarray,
+    target_idx: int,
+    horizon: int,
+    order: tuple[int, int, int],
+) -> tuple[np.ndarray, dict[str, float]]:
+    if ARIMA is None:
+        raise ImportError("statsmodels no esta instalado. Ejecuta: pip install statsmodels")
+    preds: list[np.ndarray] = []
+    failures = 0
+    successful = 0
+    total_params = 0
+
+    for i in range(len(X_test)):
+        history = X_test[i, :, target_idx].astype(float)
+        fallback = np.repeat(history[-1], horizon).astype(np.float32)
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                fit = ARIMA(
+                    history,
+                    order=order,
+                    enforce_stationarity=False,
+                    enforce_invertibility=False,
+                ).fit()
+            pred = np.asarray(fit.forecast(steps=horizon), dtype=np.float32)
+            preds.append(pred)
+            successful += 1
+            total_params += int(len(fit.params))
+        except Exception:
+            preds.append(fallback)
+            failures += 1
+
+    avg_num_params = float(total_params / successful) if successful > 0 else 0.0
+    meta = {
+        "arima_windows": float(len(X_test)),
+        "arima_successful_windows": float(successful),
+        "arima_failed_windows": float(failures),
+        "arima_avg_num_params": avg_num_params,
+    }
+    return np.asarray(preds, dtype=np.float32), meta
+
+
+def save_json(path: Path, payload: dict) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=True, indent=2)
+
+
 def main() -> None:
     args = parse_args()
     set_seed(args.seed)
@@ -169,9 +252,10 @@ def main() -> None:
     artifacts_dir.mkdir(parents=True, exist_ok=True)
     target_tag = args.target_col.lower()
     model_target_tag = f"{args.model}_{target_tag}"
-    best_model_path = artifacts_dir / f"best_model_{model_target_tag}.pth"
+
     scaler_path = artifacts_dir / f"scaler_orinoco_{target_tag}.pkl"
     feature_columns_path = artifacts_dir / f"feature_columns_{target_tag}.json"
+    best_model_path = artifacts_dir / f"best_model_{model_target_tag}.pth"
 
     df = load_excel_dataset(args.excel_path, args.date_col, args.station_cols)
     df = impute_missing_values(df)
@@ -200,45 +284,77 @@ def main() -> None:
             "No se pudieron construir ventanas suficientes. Prueba con menor lookback/horizon o mas datos."
         )
 
-    train_loader, val_loader, test_loader = make_dataloaders(
-        X_train, y_train, X_val, y_val, X_test, y_test, batch_size=args.batch_size
-    )
-
-    model = pick_model(args, input_size=X_train.shape[-1]).to(device)
+    extra_metrics: dict[str, float] = {}
     start = time.perf_counter()
-    model, history = train_model(
-        model=model,
-        train_loader=train_loader,
-        val_loader=val_loader,
-        device=device,
-        num_epochs=args.epochs,
-        patience=args.patience,
-        lr=args.lr,
-        best_model_path=best_model_path,
-    )
+
+    if args.model in {"lstm", "transformer"}:
+        train_loader, val_loader, test_loader = make_dataloaders(
+            X_train, y_train, X_val, y_val, X_test, y_test, batch_size=args.batch_size
+        )
+        model = pick_neural_model(args, input_size=X_train.shape[-1]).to(device)
+        model, history = train_model(
+            model=model,
+            train_loader=train_loader,
+            val_loader=val_loader,
+            device=device,
+            num_epochs=args.epochs,
+            patience=args.patience,
+            lr=args.lr,
+            best_model_path=best_model_path,
+        )
+        preds_norm = predict_loader(model, test_loader, device=device)
+        num_params = int(sum(p.numel() for p in model.parameters()))
+    elif args.model == "random_forest":
+        rf = train_random_forest(args, X_train, y_train)
+        preds_norm = rf.predict(X_test.reshape(X_test.shape[0], -1)).astype(np.float32)
+        history = {"train_loss": [], "val_loss": []}
+        num_params = int(sum(est.tree_.node_count for est in rf.estimators_))
+        extra_metrics = {
+            "rf_n_estimators": float(len(rf.estimators_)),
+            "rf_n_features_in": float(rf.n_features_in_),
+            "rf_n_outputs": float(rf.n_outputs_),
+        }
+        save_json(
+            artifacts_dir / f"rf_config_{model_target_tag}.json",
+            {
+                "rf_n_estimators": args.rf_n_estimators,
+                "rf_max_depth": None if args.rf_max_depth <= 0 else args.rf_max_depth,
+                "rf_min_samples_leaf": args.rf_min_samples_leaf,
+            },
+        )
+    else:
+        preds_norm, arima_meta = forecast_arima_per_window(
+            X_test=X_test,
+            target_idx=target_idx,
+            horizon=args.horizon,
+            order=(args.arima_p, args.arima_d, args.arima_q),
+        )
+        history = {"train_loss": [], "val_loss": []}
+        num_params = int(arima_meta["arima_avg_num_params"])
+        extra_metrics = arima_meta
+        save_json(
+            artifacts_dir / f"arima_config_{model_target_tag}.json",
+            {"order": [args.arima_p, args.arima_d, args.arima_q]},
+        )
+
     elapsed = time.perf_counter() - start
 
-    preds_norm = predict_loader(model, test_loader, device=device)
-    y_test_true = y_test
     preds = inverse_target(scaler, preds_norm, target_idx=target_idx, n_features=X_train.shape[-1])
-    y_true = inverse_target(scaler, y_test_true, target_idx=target_idx, n_features=X_train.shape[-1])
+    y_true = inverse_target(scaler, y_test, target_idx=target_idx, n_features=X_train.shape[-1])
 
-    metrics = summarize_metrics(y_true.flatten(), preds.flatten())
+    metrics: dict[str, float | str] = summarize_metrics(y_true.flatten(), preds.flatten())
     metrics["training_seconds"] = float(elapsed)
-    metrics["num_params"] = int(sum(p.numel() for p in model.parameters()))
+    metrics["num_params"] = int(num_params)
     metrics["target_col"] = args.target_col
     metrics["model"] = args.model
     metrics["artifact_tag"] = model_target_tag
+    metrics.update(extra_metrics)
 
     save_feature_columns(split_data.feature_columns, feature_columns_path)
     np.save(artifacts_dir / f"y_true_{model_target_tag}.npy", y_true)
     np.save(artifacts_dir / f"y_pred_{model_target_tag}.npy", preds)
-
-    with open(artifacts_dir / f"history_{model_target_tag}.json", "w", encoding="utf-8") as f:
-        json.dump(history, f, ensure_ascii=True, indent=2)
-
-    with open(artifacts_dir / f"metrics_{model_target_tag}.json", "w", encoding="utf-8") as f:
-        json.dump(metrics, f, ensure_ascii=True, indent=2)
+    save_json(artifacts_dir / f"history_{model_target_tag}.json", history)
+    save_json(artifacts_dir / f"metrics_{model_target_tag}.json", metrics)
 
     print("\nMetricas test:")
     for k, v in metrics.items():

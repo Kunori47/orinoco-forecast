@@ -1,0 +1,15 @@
+{
+  "mae": 0.7329264879226685,
+  "rmse": 1.2535486221313477,
+  "mape": 1.596769094467163,
+  "nse": 0.8917276859283447,
+  "training_seconds": 45.45860133699989,
+  "num_params": 5,
+  "target_col": "ayacucho",
+  "model": "arima",
+  "artifact_tag": "arima_ayacucho",
+  "arima_windows": 2684.0,
+  "arima_successful_windows": 2684.0,
+  "arima_failed_windows": 0.0,
+  "arima_avg_num_params": 5.0
+}

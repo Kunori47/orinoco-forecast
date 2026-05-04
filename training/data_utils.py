@@ -34,7 +34,22 @@ class SplitData:
 
 
 def load_excel_dataset(excel_path: str, date_col: str, station_cols: Sequence[str]) -> pd.DataFrame:
-    df = pd.read_excel(excel_path)
+    excel_file = Path(excel_path)
+    if not excel_file.exists():
+        cwd = Path.cwd()
+        hint = (
+            f"Archivo Excel no encontrado: '{excel_path}'. "
+            f"Ruta absoluta esperada: '{excel_file.resolve()}'. "
+            "Verifica --excel-path o coloca el archivo en data/raw/."
+        )
+        # Ayuda rapida para descubrir posibles archivos de datos existentes.
+        candidates = sorted(cwd.glob("data/raw/*.xlsx"))
+        if candidates:
+            sample = ", ".join(str(p) for p in candidates[:5])
+            hint += f" Candidatos en data/raw: {sample}"
+        raise FileNotFoundError(hint)
+
+    df = pd.read_excel(excel_file)
     expected_cols = [date_col, *station_cols]
     missing = [c for c in expected_cols if c not in df.columns]
     if missing:

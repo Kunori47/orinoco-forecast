@@ -1,0 +1,14 @@
+{
+  "mae": 0.47713446617126465,
+  "rmse": 0.6625306606292725,
+  "mape": 1.7756305932998657,
+  "nse": 0.9741657376289368,
+  "training_seconds": 156.7053412969999,
+  "num_params": 4857750,
+  "target_col": "caicara",
+  "model": "random_forest",
+  "artifact_tag": "random_forest_caicara",
+  "rf_n_estimators": 300.0,
+  "rf_n_features_in": 810.0,
+  "rf_n_outputs": 30.0
+}

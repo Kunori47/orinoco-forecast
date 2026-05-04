@@ -1,0 +1,14 @@
+{
+  "mae": 0.4862070381641388,
+  "rmse": 0.6737557649612427,
+  "mape": 6.60413932800293,
+  "nse": 0.9783138036727905,
+  "training_seconds": 158.83419456499996,
+  "num_params": 4855344,
+  "target_col": "ciudad_bolivar",
+  "model": "random_forest",
+  "artifact_tag": "random_forest_ciudad_bolivar",
+  "rf_n_estimators": 300.0,
+  "rf_n_features_in": 810.0,
+  "rf_n_outputs": 30.0
+}

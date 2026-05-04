@@ -1,6 +1,6 @@
-# Orinoco Forecast (PyTorch)
+# Orinoco Forecast (Deep Learning + Baselines)
 
-Proyecto de prediccion hidrologica del Rio Orinoco usando series temporales multivariadas y comparacion de modelos LSTM vs Transformer.
+Proyecto de prediccion hidrologica del Rio Orinoco usando series temporales multivariadas y comparacion de modelos LSTM, Transformer, ARIMA y Random Forest.
 
 ## Objetivo
 
@@ -9,7 +9,7 @@ Predecir el nivel del rio para un horizonte de 30 dias (ampliable), usando:
 - Datos de estaciones: Ayacucho, Caicara, Ciudad Bolivar y Palua.
 - Features ciclicas (`sin/cos`) para dia del ano y mes.
 - Split temporal sin aleatorizacion.
-- Entrenamiento y evaluacion comparativa en PyTorch.
+- Entrenamiento y evaluacion comparativa con modelos deep y baselines clasicos.
 
 ## Estructura
 
@@ -85,10 +85,34 @@ python training/train.py \
   --model transformer
 ```
 
+Ejemplo con ARIMA:
+
+```bash
+python training/train.py \
+  --excel-path data/raw/orinoco.xlsx \
+  --date-col fecha \
+  --target-col ciudad_bolivar \
+  --station-cols ayacucho caicara ciudad_bolivar palua \
+  --model arima \
+  --arima-p 3 --arima-d 1 --arima-q 1
+```
+
+Ejemplo con Random Forest:
+
+```bash
+python training/train.py \
+  --excel-path data/raw/orinoco.xlsx \
+  --date-col fecha \
+  --target-col ciudad_bolivar \
+  --station-cols ayacucho caicara ciudad_bolivar palua \
+  --model random_forest \
+  --rf-n-estimators 300
+```
+
 Parametros destacados de entrenamiento:
 
 - `--target-col`: ciudad/serie objetivo a predecir.
-- `--model`: `lstm` o `transformer`.
+- `--model`: `lstm`, `transformer`, `arima` o `random_forest`.
 - `--artifacts-dir`: carpeta de salida de artefactos (default `artifacts`).
 
 Entrenamiento de todas las ciudades x todos los modelos:
@@ -97,10 +121,10 @@ Entrenamiento de todas las ciudades x todos los modelos:
 python training/train_grid.py \
   --excel-path data/raw/orinoco.xlsx \
   --station-cols ayacucho caicara ciudad_bolivar palua \
-  --models lstm transformer
+  --models lstm transformer arima random_forest
 ```
 
-Tabla unica de comparativa LSTM vs Transformer:
+Tabla unica de comparativa de modelos:
 
 ```bash
 PYTHONPATH=. .venv/bin/python training/compare_models.py \

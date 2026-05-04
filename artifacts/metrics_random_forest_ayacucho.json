@@ -1,0 +1,14 @@
+{
+  "mae": 0.5674684047698975,
+  "rmse": 0.7578084468841553,
+  "mape": 1.2395857572555542,
+  "nse": 0.9604310989379883,
+  "training_seconds": 157.0423717640001,
+  "num_params": 4817060,
+  "target_col": "ayacucho",
+  "model": "random_forest",
+  "artifact_tag": "random_forest_ayacucho",
+  "rf_n_estimators": 300.0,
+  "rf_n_features_in": 810.0,
+  "rf_n_outputs": 30.0
+}
